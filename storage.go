@@ -1,11 +1,15 @@
 package main
 
 import (
-	"database/sql"
+    "database/sql"
+    "fmt"
+    "log"
+    "os"
 
-	_ "github.com/lib/pq"
-	
+    _ "github.com/lib/pq"
+    "github.com/joho/godotenv"
 )
+
 
 //Interface for defining the method CRUD
 type Storage interface {
@@ -23,18 +27,33 @@ type PostgresStore struct{
 // This function for creating a connection to the database
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=postgres password=mysecretpassword sslmode=disable"
-	db, err := sql.Open ("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-	if err := db.Ping(); err != nil{
-		return nil, err
-	}
-	return &PostgresStore{
-		db: db,
-	}, nil
+    // Load .env file
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatalf("Error loading .env file: %s", err)
+    }
 
+    // Get environment variables
+    dbUser := os.Getenv("DB_USER")
+    dbPassword := os.Getenv("DB_PASSWORD")
+    dbName := os.Getenv("DB_NAME")
+    dbHost := os.Getenv("DB_HOST")
+    dbPort := os.Getenv("DB_PORT")
+    dbSSLMode := os.Getenv("DB_SSLMODE")
+
+    // Create connection string
+    connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=%s",
+        dbUser, dbPassword, dbName, dbHost, dbPort, dbSSLMode)
+
+    // Connect to the database
+    db, err := sql.Open("postgres", connStr)
+    if err != nil {
+        return nil, err
+    }
+    if err := db.Ping(); err != nil {
+        return nil, err
+    }
+    return &PostgresStore{db: db}, nil
 }
 
 func (s *PostgresStore) init() error{
