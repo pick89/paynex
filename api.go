@@ -9,40 +9,24 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// WriteJSON writes JSON response with appropriate headers
-func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
 
-// ApiError represents an error response
-type ApiError struct {
-	Error string `json:"error"`
-}
 
 // apiFunc defines the function signature for API handlers
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
-// makeHTTPHandleFunc creates an HTTP handler function from an API function
-func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			log.Println("Error:", err) // Logging the error for debugging
-			WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
-		}
-	}
-}
+
 
 // APIServer represents the API server
 type APIServer struct {
-	listenAddr string
+	listenAddr 	string
+	store 		Storage
 }
 
 // NewAPIServer creates a new instance of APIServer
-func NewAPIServer(listenAddr string) *APIServer {
+func NewAPIServer(listenAddr string, store Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
+		store: store,
 	}
 }
 
@@ -96,4 +80,25 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 }
 func (s *APIServer) handleTransfert(w http.ResponseWriter, r *http.Request) error {
 	return nil
+}
+
+// WriteJSON writes JSON response with appropriate headers
+func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
+	w.WriteHeader(status)
+	w.Header().Add("Content-Type", "application/json") 
+	return json.NewEncoder(w).Encode(v)
+}
+
+// ApiError represents an error response
+type ApiError struct {
+	Error string `json:"error"`
+}
+
+// makeHTTPHandleFunc creates an HTTP handler function from an API function
+func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := f(w, r); err != nil {
+			WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
+		}
+	}
 }
