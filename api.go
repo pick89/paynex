@@ -18,13 +18,15 @@ type apiFunc func(http.ResponseWriter, *http.Request) error
 
 // APIServer represents the API server
 type APIServer struct {
-	listenAddr string
+	listenAddr 	string
+	store 		Storage
 }
 
 // NewAPIServer creates a new instance of APIServer
-func NewAPIServer(listenAddr string) *APIServer {
+func NewAPIServer(listenAddr string, store Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
+		store: store,
 	}
 }
 
@@ -83,7 +85,7 @@ func (s *APIServer) handleTransfert(w http.ResponseWriter, r *http.Request) erro
 // WriteJSON writes JSON response with appropriate headers
 func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
 	w.WriteHeader(status)
-	w.Header().Add("Content-Type", "application/json")
+	w.Header().Add("Content-Type", "application/json") 
 	return json.NewEncoder(w).Encode(v)
 }
 
