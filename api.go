@@ -44,6 +44,8 @@ func (s *APIServer) Run() {
 }
 
 
+
+
 // handleAccount handles requests for /account
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
@@ -68,11 +70,22 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	// Implement logic to create a new account
-	// For now, let's return a dummy account
-	account := NewAccount("John", "Doe")
-	return WriteJSON(w, http.StatusCreated, account)
+    var createAccountReq CreateAccountRequest
+    if err := json.NewDecoder(r.Body).Decode(&createAccountReq); err != nil {
+        // Use WriteJSON to send an error message if decoding fails
+        return WriteJSON(w, http.StatusBadRequest, ApiError{Error: "Invalid JSON data"})
+    }
+    
+    account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+    if err := s.store.CreateAccount(account); err != nil {
+        // Use WriteJSON to send an error message if creating the account fails
+        return WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Failed to create account"})
+    }
+    
+    // Successfully created the account, return it as JSON
+    return WriteJSON(w, http.StatusCreated, account)
 }
+
 
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -84,9 +97,13 @@ func (s *APIServer) handleTransfert(w http.ResponseWriter, r *http.Request) erro
 
 // WriteJSON writes JSON response with appropriate headers
 func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
-	w.WriteHeader(status)
-	w.Header().Add("Content-Type", "application/json") 
-	return json.NewEncoder(w).Encode(v)
+	w.Header().Set("Content-Type", "application/json") // Set the content type header.
+    w.WriteHeader(status) // Write the HTTP status code.
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return err
+    }
+    return nil
 }
 
 // ApiError represents an error response
