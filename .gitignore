@@ -22,3 +22,20 @@ go.work
 
 # File of env information
 .env
+
+# Ignore build directories
+bin/*
+!bin/app
+
+# Ignore environment files
+*.env
+
+# Ignore logs
+logs/
+
+# Ignore temporary files
+temp/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
