@@ -14,13 +14,27 @@ import (
 // apiFunc defines the function signature for API handlers
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
-
-
 // APIServer represents the API server
 type APIServer struct {
 	listenAddr 	string
 	store 		Storage
 }
+
+// ErrClientError represents a client-side error
+type ErrClientError struct {
+    Msg string
+}
+
+// ApiError represents an error response
+type ApiError struct {
+	Error string `json:"error"`
+}
+
+// Error method makes ErrClientError satisfy the error interface.
+func (e ErrClientError) Error() string {
+    return e.Msg
+}
+
 
 // NewAPIServer creates a new instance of APIServer
 func NewAPIServer(listenAddr string, store Storage) *APIServer {
@@ -29,6 +43,27 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 		store: store,
 	}
 }
+
+// makeHTTPHandleFunc creates an HTTP handler function from an API function
+func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if err := f(w, r); err != nil {
+            // Check if the error is a client error
+            if clientErr, ok := err.(ErrClientError); ok {
+                // If it's a client error, send a 400 Bad Request
+                WriteJSON(w, http.StatusBadRequest, ApiError{Error: clientErr.Error()})
+            } else {
+                // If it's not a client error, assume it's a server error
+                WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
+            }
+        }
+    }
+}
+
+
+
+
+
 
 
 // Run starts the API server
@@ -42,6 +77,7 @@ func (s *APIServer) Run() {
 
 	http.ListenAndServe(s.listenAddr, router)
 }
+
 
 
 // handleAccount handles requests for /account
@@ -68,11 +104,22 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	// Implement logic to create a new account
-	// For now, let's return a dummy account
-	account := NewAccount("John", "Doe")
-	return WriteJSON(w, http.StatusCreated, account)
+    var createAccountReq CreateAccountRequest
+    if err := json.NewDecoder(r.Body).Decode(&createAccountReq); err != nil {
+        // Use WriteJSON to send an error message if decoding fails
+        return WriteJSON(w, http.StatusBadRequest, ApiError{Error: "Invalid JSON data"})
+    }
+    
+    account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+    if err := s.store.CreateAccount(account); err != nil {
+        // Use WriteJSON to send an error message if creating the account fails
+        return WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Failed to create account"})
+    }
+    
+    // Successfully created the account, return it as JSON
+    return WriteJSON(w, http.StatusCreated, account)
 }
+
 
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -84,21 +131,11 @@ func (s *APIServer) handleTransfert(w http.ResponseWriter, r *http.Request) erro
 
 // WriteJSON writes JSON response with appropriate headers
 func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
-	w.WriteHeader(status)
-	w.Header().Add("Content-Type", "application/json") 
-	return json.NewEncoder(w).Encode(v)
-}
-
-// ApiError represents an error response
-type ApiError struct {
-	Error string `json:"error"`
-}
-
-// makeHTTPHandleFunc creates an HTTP handler function from an API function
-func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
-		}
-	}
+	w.Header().Set("Content-Type", "application/json") // Set the content type header.
+    w.WriteHeader(status) // Write the HTTP status code.
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return err
+    }
+    return nil
 }
