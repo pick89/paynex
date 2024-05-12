@@ -34,10 +34,10 @@ func NewPostgresStore() (*PostgresStore, error) {
 	dbHost := os.Getenv("POSTGRES_HOST")
 	dbPort := os.Getenv("POSTGRES_PORT")
 
-	// Default port if not provided
-	if dbPort == "" {
-		dbPort = "5432"
-	}
+	// // Default port if not provided
+	// if dbPort == "" {
+	// 	dbPort = "5432"
+	// }
 
 	// Construct connection string
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
