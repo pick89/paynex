@@ -14,13 +14,27 @@ import (
 // apiFunc defines the function signature for API handlers
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
-
-
 // APIServer represents the API server
 type APIServer struct {
 	listenAddr 	string
 	store 		Storage
 }
+
+// ErrClientError represents a client-side error
+type ErrClientError struct {
+    Msg string
+}
+
+// ApiError represents an error response
+type ApiError struct {
+	Error string `json:"error"`
+}
+
+// Error method makes ErrClientError satisfy the error interface.
+func (e ErrClientError) Error() string {
+    return e.Msg
+}
+
 
 // NewAPIServer creates a new instance of APIServer
 func NewAPIServer(listenAddr string, store Storage) *APIServer {
@@ -29,6 +43,27 @@ func NewAPIServer(listenAddr string, store Storage) *APIServer {
 		store: store,
 	}
 }
+
+// makeHTTPHandleFunc creates an HTTP handler function from an API function
+func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if err := f(w, r); err != nil {
+            // Check if the error is a client error
+            if clientErr, ok := err.(ErrClientError); ok {
+                // If it's a client error, send a 400 Bad Request
+                WriteJSON(w, http.StatusBadRequest, ApiError{Error: clientErr.Error()})
+            } else {
+                // If it's not a client error, assume it's a server error
+                WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
+            }
+        }
+    }
+}
+
+
+
+
+
 
 
 // Run starts the API server
@@ -42,7 +77,6 @@ func (s *APIServer) Run() {
 
 	http.ListenAndServe(s.listenAddr, router)
 }
-
 
 
 
@@ -104,18 +138,4 @@ func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
         return err
     }
     return nil
-}
-
-// ApiError represents an error response
-type ApiError struct {
-	Error string `json:"error"`
-}
-
-// makeHTTPHandleFunc creates an HTTP handler function from an API function
-func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			WriteJSON(w, http.StatusInternalServerError, ApiError{Error: "Internal Server Error"})
-		}
-	}
 }

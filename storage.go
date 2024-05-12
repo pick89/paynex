@@ -34,10 +34,10 @@ func NewPostgresStore() (*PostgresStore, error) {
 	dbHost := os.Getenv("POSTGRES_HOST")
 	dbPort := os.Getenv("POSTGRES_PORT")
 
-	// // Default port if not provided
-	// if dbPort == "" {
-	// 	dbPort = "5432"
-	// }
+	// Default port if not provided
+	if dbPort == "" {
+		dbPort = "5432"
+	}
 
 	// Construct connection string
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
@@ -83,6 +83,9 @@ func (s *PostgresStore) createAccountTable() error {
 }
 
 func (s *PostgresStore) CreateAccount(acc *Account) error {
+	if acc.FirstName == "" || acc.LastName == "" {
+        return fmt.Errorf("first name and last name cannot be empty")
+    }
 	query := `
     INSERT INTO accounts
     (first_name, last_name, number, balance, created_at)
