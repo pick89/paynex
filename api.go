@@ -10,7 +10,6 @@ import (
 )
 
 
-
 // apiFunc defines the function signature for API handlers
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
@@ -60,12 +59,6 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
     }
 }
 
-
-
-
-
-
-
 // Run starts the API server
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
@@ -78,13 +71,22 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
-
+// WriteJSON writes JSON response with appropriate headers
+func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
+	w.Header().Set("Content-Type", "application/json") // Set the content type header.
+    w.WriteHeader(status) // Write the HTTP status code.
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return err
+    }
+    return nil
+}
 
 // handleAccount handles requests for /account
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case http.MethodGet:
-		return s.handleGetAccount(w, r)
+		return s.handleGetAccounts(w, r)
 	case http.MethodPost:
 		return s.handleCreateAccount(w, r)
 	case http.MethodDelete:
@@ -92,15 +94,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	default:
 		return fmt.Errorf("Method not allowed: %s", r.Method)
 	}
-}
-
-// handleGetAccount handles GET requests for /account/{id}
-func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
-	id := mux.Vars(r)["id"]
-	log.Println("Requested account ID:", id)
-	// Implement logic to fetch account details from database using the id
-	// For now, let's just return an empty account
-	return WriteJSON(w, http.StatusOK, &Account{})
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -120,22 +113,27 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
     return WriteJSON(w, http.StatusCreated, account)
 }
 
+// handleGetAccount handles GET requests for /account/{id}
+func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+	id := mux.Vars(r)["id"]
+	log.Println("Requested account ID:", id)
+	// Implement logic to fetch account details from database using the id
+	// For now, let's just return an empty account
+	return WriteJSON(w, http.StatusOK, &Account{})
+}
 
+// handleGetAccounts handles GET requests for /account
+func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
+	accounts, err := s.store.GetAccounts()
+	if err != nil {
+		return err
+	}
+	return WriteJSON(w, http.StatusOK, accounts)
+}
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 func (s *APIServer) handleTransfert(w http.ResponseWriter, r *http.Request) error {
 	return nil
-}
-
-// WriteJSON writes JSON response with appropriate headers
-func WriteJSON(w http.ResponseWriter, status int, v interface{}) error {
-	w.Header().Set("Content-Type", "application/json") // Set the content type header.
-    w.WriteHeader(status) // Write the HTTP status code.
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return err
-    }
-    return nil
 }

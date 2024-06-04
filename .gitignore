@@ -39,3 +39,5 @@ temp/
 # Ignore IDE-specific files
 .vscode/
 .idea/
+
+bin

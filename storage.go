@@ -15,6 +15,7 @@ type Storage interface {
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
+	GetAccounts() ([]*Account, error)
 }
 
 type PostgresStore struct {
@@ -120,5 +121,40 @@ func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 	return nil, nil
 }
 
+func (s *PostgresStore) GetAccounts() ([]*Account, error) {
+	rows, err := s.db.Query("select * from accounts;")
+	if err != nil{
+		return nil, err
+	}
+	defer rows.Close()
+
+	var accounts []*Account
+	for rows.Next() {
+		account, err := scanIntoAccount(rows)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return accounts, nil
+}
+
+func scanIntoAccount(rows *sql.Rows) (*Account, error){
+	account := new(Account)
+	err := rows.Scan(
+		//&account.id,
+		&account.FirstName,
+		&account.LastName,
+		&account.Number,
+		&account.Balance,
+		&account.CreateAt)
+		
+	return account, err
+}
 
 //Function CRUD on my database
